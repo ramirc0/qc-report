@@ -14,7 +14,7 @@ dependencies = [
     "msgspec>=0.19",
     "numpy>=2.0",
     "plotly>=6",
-    "poikilos[plotly]",
+    "poikilos[plotly] @ git+https://github.com/ramirc0/poikilos@v1.3.0",
     "polars>=1.30",
     "pyyaml>=6.0",
     "zlib-ng>=1.0",
@@ -34,9 +34,9 @@ dev = [
 exclude-newer = "7d"
 exclude-newer-package = { certifi = false }
 
-[tool.uv.sources]
-# The plotly template is on poikilos's unpushed plotly-template branch.
-poikilos = { path = "../../poikilos/plotly-template", editable = true }
+# poikilos is not on PyPI.
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qc_report"]

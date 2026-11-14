@@ -45,7 +45,7 @@ Cohort histograms come from the metrics table. Per-sample figures come from the 
 
 `write_sample_panels(path, sample, panels)` writes `samples/<sample>.js` beside the report. A panel is a plotly figure, or the path to a PNG relative to the report. The page loads a sample's file when its detail opens, so a 767-sample run stays light. This works from `file://`.
 
-The page holds plotly.js and the theme's template once. `poikilos.plotly_template(theme)` builds the template from the same theme data as `poikilos.use(theme)`.
+The page holds plotly.js and the theme's template once. `poikilos.plotly.template(theme)` builds the template from the same theme data as `poikilos.use(theme)`.
 
 ## Getting Started
 

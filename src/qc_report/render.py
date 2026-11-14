@@ -9,7 +9,7 @@ from pathlib import Path
 import msgspec
 import plotly.graph_objects as go
 import plotly.io as pio
-import poikilos as pk
+import poikilos.plotly
 import polars as pl
 from minijinja import Environment
 from plotly.offline import get_plotlyjs
@@ -168,7 +168,7 @@ def render_report(metrics, spec, run_id, version="", run_href=".."):
         for row in percentiles(metrics, spec).iter_rows(named=True)
     }
     fired = _fired_by_sample(flags)
-    template = pk.plotly_template(spec.theme)
+    template = poikilos.plotly.template(spec.theme)
     rows = list(metrics.iter_rows(named=True))
     sample_view = _SampleView(spec, cells, outliers, ranks, fired, status, run_href)
     cards = [_card(m, metrics, cells, spec) for m in spec.metrics if m.headline]
