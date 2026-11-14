@@ -59,13 +59,18 @@ The page holds plotly.js and the theme's template once. `poikilos.plotly.templat
 
 ### Installing
 
-In a pixi workspace:
+In a pixi workspace of its own, so report updates never touch the analysis envs:
 
 ```toml
+[dependencies]
+python = "3.14.*"
+
 [pypi-dependencies]
-qc-report = { git = "https://github.com/ramirc0/qc-report", rev = "<commit>" }
-poikilos = { git = "https://github.com/ramirc0/poikilos", rev = "<commit>", extras = ["plotly"] }
+qc-report = { git = "https://github.com/ramirc0/qc-report", tag = "v0.1.0" }
 ```
+
+qc-report pins poikilos by tag, so pixi installs it too. Pin Python to a
+version that every dependency ships wheels for.
 
 ### Executing program
 
