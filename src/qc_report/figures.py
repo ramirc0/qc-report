@@ -218,8 +218,9 @@ def gc_bias_figure(gc_metrics):
     fig.add_hline(y=1, line={"dash": "dot", "width": 1, "color": MUTED})
     fig.update_xaxes(title_text="GC (%)")
     fig.update_yaxes(title_text="Normalized coverage", secondary_y=False)
+    # The windows are context, so their axis stays bare.
     fig.update_yaxes(
-        title_text="Genome windows", tickformat=".0%", secondary_y=True, showline=False
+        secondary_y=True, showline=False, showticklabels=False, ticks="", title_text=""
     )
     fig.update_layout(showlegend=False)
     return fig

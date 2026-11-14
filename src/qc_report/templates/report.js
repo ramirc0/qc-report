@@ -6,12 +6,15 @@
     modeBarButtonsToRemove: ["select2d", "lasso2d", "autoScale2d"],
   };
 
-  function plot(host, figure) {
+  function plot(host, figure, options = {}) {
     const layout = Object.assign({}, figure.layout, { template: data.template, autosize: true });
-    Plotly.newPlot(host, figure.data, layout, config);
+    Plotly.newPlot(host, figure.data, layout, Object.assign({}, config, options));
   }
 
-  document.querySelectorAll(".card .plot").forEach((host) => plot(host, data.cards[host.dataset.card]));
+  // Cards are small, so they skip the toolbar. Zoom and hover still work.
+  document.querySelectorAll(".card .plot").forEach((host) =>
+    plot(host, data.cards[host.dataset.card], { displayModeBar: false }),
+  );
 
   // Sorting: numbers sort on data-value, sample names on their text. Blanks sort last.
   const table = document.querySelector(".samples-table");
@@ -109,7 +112,6 @@
         } else {
           content.src = panel.image;
           content.alt = panel.title;
-          content.loading = "lazy";
           figure.append(content);
           host.append(figure);
         }
