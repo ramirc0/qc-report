@@ -225,24 +225,30 @@ def gc_bias_figure(gc_metrics):
     return fig
 
 
-def idr_rank_figure(idr_txt, threshold=0.05, bins=100):
-    r"""Draw how two pseudoreplicates rank the same peaks, as a 2D histogram.
+def idr_signal_figure(idr_txt, threshold=0.05, max_points=2500, seed=0):
+    r"""Draw each peak's signal in the two pseudoreplicates, split by IDR.
+
+    Reproducible peaks sit on the diagonal and pass. The legend counts every
+    peak. The scatter draws a random sample, so a large file stays small.
 
     Parameters
     ----------
     idr_txt : str or pathlib.Path
         IDR 2.x output, optionally gzipped. Column 12 holds the global
-        -log10 IDR; columns 15 and 19 hold each replicate's signal.
+        -log10 IDR. Columns 15 and 19 hold the signal each replicate was
+        ranked on. Peaks missing from a replicate are skipped.
     threshold : float, default 0.05
-        IDR threshold, for the count in the title.
-    bins : int, default 100
-        Bins per axis.
+        IDR threshold.
+    max_points : int, default 2500
+        Peaks drawn.
+    seed : int, default 0
+        Sampling seed, so a rerun draws the same peaks.
 
     Returns
     -------
     plotly.graph_objects.Figure
-        Heatmap of peak counts by rank in each replicate, rank 1 the
-        strongest. Color is log10(count + 1).
+        Log-log scatter: failing peaks muted, passing peaks in the theme's
+        first color, drawn on top.
 
     Examples
     --------
@@ -256,32 +262,31 @@ def idr_rank_figure(idr_txt, threshold=0.05, bins=100):
     ...     "\n".join([peak(100, 5.0, 90.0, 80.0), peak(900, 3.2, 40.0, 50.0),
     ...                peak(2000, 0.4, 10.0, 12.0)]) + "\n"
     ... )
-    >>> idr_rank_figure(path, threshold=0.05, bins=3).layout.title.text
-    '2 of 3 peaks pass IDR 0.05'
+    >>> [trace.name for trace in idr_signal_figure(path).data]
+    ['Fail IDR 0.05: 1', 'Pass IDR 0.05: 2']
     """
     table = pl.read_csv(idr_txt, separator="\t", has_header=False)
     peaks = table.select(
-        idr=pl.nth(11),
-        rank1=pl.nth(14).rank("ordinal", descending=True),
-        rank2=pl.nth(18).rank("ordinal", descending=True),
-    )
-    counts, xedges, yedges = np.histogram2d(peaks["rank1"], peaks["rank2"], bins=bins)
-    passed = peaks.filter(pl.col("idr") >= -np.log10(threshold)).height
-    fig = go.Figure(
-        go.Heatmap(
-            x=(xedges[:-1] + xedges[1:]) / 2,
-            y=(yedges[:-1] + yedges[1:]) / 2,
-            z=np.log10(counts.T + 1),
-            customdata=counts.T,
-            colorscale="Greys",
-            showscale=False,
-            hovertemplate="rank %{x:.0f} vs %{y:.0f}<br>%{customdata:.0f} peaks"
-            "<extra></extra>",
+        passes=pl.nth(11) >= -np.log10(threshold),
+        rep1=pl.nth(14),
+        rep2=pl.nth(18),
+    ).filter((pl.col("rep1") > 0) & (pl.col("rep2") > 0))
+    shown = peaks.sample(max_points, seed=seed) if peaks.height > max_points else peaks
+    fig = go.Figure()
+    for passes, word, marker in ((False, "Fail", {"color": MUTED}), (True, "Pass", {})):
+        part = shown.filter(pl.col("passes") == passes)
+        total = peaks.filter(pl.col("passes") == passes).height
+        fig.add_scatter(
+            x=part["rep1"].round(2),
+            y=part["rep2"].round(2),
+            mode="markers",
+            name=f"{word} IDR {threshold:g}: {total:,}",
+            marker={"size": 3, "line": {"width": 0}, **marker},
+            hovertemplate="%{x:.1f}, %{y:.1f}<extra></extra>",
         )
-    )
+    fig.update_xaxes(type="log", dtick=1, title_text="Signal, pseudoreplicate 1")
+    fig.update_yaxes(type="log", dtick=1, title_text="Signal, pseudoreplicate 2")
     fig.update_layout(
-        title_text=f"{passed:,} of {peaks.height:,} peaks pass IDR {threshold:g}",
-        xaxis_title="Rank, pseudoreplicate 1",
-        yaxis_title="Rank, pseudoreplicate 2",
+        legend={"x": 0.02, "y": 0.98, "xanchor": "left", "yanchor": "top"}
     )
     return fig

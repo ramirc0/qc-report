@@ -6,7 +6,7 @@ from .figures import (
     LEVEL_COLORS,
     format_count,
     gc_bias_figure,
-    idr_rank_figure,
+    idr_signal_figure,
     level_histogram,
     read_quality_figure,
 )
@@ -36,7 +36,7 @@ __all__ = [
     "format_count",
     "format_value",
     "gc_bias_figure",
-    "idr_rank_figure",
+    "idr_signal_figure",
     "level_histogram",
     "percentiles",
     "read_cutadapt",
