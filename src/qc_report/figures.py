@@ -226,6 +226,155 @@ def gc_bias_figure(gc_metrics):
     return fig
 
 
+def tss_profile_figure(profile):
+    """Draw the mean signal around TSSs, normalized to the flanks.
+
+    Parameters
+    ----------
+    profile : polars.DataFrame
+        ``distance`` from the TSS in bp, and ``enrichment``, the mean signal
+        over the mean of the outer flanks.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        The profile and a dotted line at the TSS. The title gives the peak,
+        which is the TSS enrichment score.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> profile = pl.DataFrame({"distance": [-10, 0, 10], "enrichment": [1.0, 8.6, 1.1]})
+    >>> tss_profile_figure(profile).layout.title.text
+    'TSS enrichment 8.60'
+    """
+    fig = go.Figure(
+        go.Scatter(
+            x=profile["distance"],
+            y=profile["enrichment"].round(4),
+            mode="lines",
+            hovertemplate="%{x:.0f} bp<br>%{y:.2f}<extra></extra>",
+        )
+    )
+    fig.add_vline(x=0, line={"dash": "dot", "width": 1, "color": MUTED})
+    fig.update_layout(
+        title_text=f"TSS enrichment {profile['enrichment'].max():.2f}",
+        xaxis_title="Distance from TSS (bp)",
+        yaxis_title="Enrichment",
+        showlegend=False,
+    )
+    return fig
+
+
+def insert_size_figure(histogram, bands=(), longest=1000):
+    """Draw fragment counts per length from Picard's insert size histogram.
+
+    Parameters
+    ----------
+    histogram : polars.DataFrame
+        The ``## HISTOGRAM`` table of CollectInsertSizeMetrics, read with
+        ``read_picard_metrics(path, histogram=True)``. The first count column
+        is drawn.
+    bands : sequence of tuple, optional
+        ``(label, low, high)`` ranges in bp to shade, such as the
+        nucleosome-free range.
+    longest : int, default 1000
+        Longest fragment shown.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        Filled step line with the bands behind it.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> histogram = pl.DataFrame(
+    ...     {"insert_size": [50, 51, 200], "All_Reads.fr_count": [7, 9, 30]}
+    ... )
+    >>> fig = insert_size_figure(histogram, bands=[("NFR", 0, 150)])
+    >>> [shape.x1 for shape in fig.layout.shapes]
+    [150]
+    """
+    sizes = histogram["insert_size"]
+    counts = histogram[histogram.columns[1]]
+    fig = go.Figure(
+        go.Scatter(
+            x=sizes,
+            y=counts,
+            mode="lines",
+            line_shape="hvh",
+            fill="tozeroy",
+            hovertemplate="%{x} bp<br>%{y:,} fragments<extra></extra>",
+        )
+    )
+    for index, (label, low, high) in enumerate(bands):
+        # Alternate shades, so touching bands stay apart.
+        fig.add_vrect(
+            x0=low,
+            x1=high,
+            fillcolor=MUTED,
+            opacity=0.12 if index % 2 == 0 else 0.24,
+            line_width=0,
+            layer="below",
+            annotation_text=label,
+            annotation_position="top left",
+        )
+    fig.update_xaxes(
+        range=[0, min(longest, sizes.max())], title_text="Fragment length (bp)"
+    )
+    fig.update_yaxes(title_text="Fragments")
+    fig.update_layout(showlegend=False)
+    return fig
+
+
+def fingerprint_figure(curve):
+    """Draw a fingerprint: the share of reads in the least covered share of bins.
+
+    Parameters
+    ----------
+    curve : polars.DataFrame
+        ``fraction_of_bins`` and ``fraction_of_reads``, both increasing from
+        0 to 1, with bins sorted by read count as deepTools plotFingerprint
+        sorts them.
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+        The curve and a dotted diagonal, which uniform coverage would follow.
+        Enriched libraries bow further below it.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> curve = pl.DataFrame(
+    ...     {"fraction_of_bins": [0.0, 0.5, 1.0], "fraction_of_reads": [0.0, 0.2, 1.0]}
+    ... )
+    >>> len(fingerprint_figure(curve).data)
+    1
+    """
+    fig = go.Figure(
+        go.Scatter(
+            x=curve["fraction_of_bins"].round(4),
+            y=curve["fraction_of_reads"].round(4),
+            mode="lines",
+            hovertemplate="%{x:.0%} of bins<br>%{y:.1%} of reads<extra></extra>",
+        )
+    )
+    fig.add_shape(
+        type="line",
+        x0=0,
+        y0=0,
+        x1=1,
+        y1=1,
+        line={"dash": "dot", "width": 1, "color": MUTED},
+    )
+    fig.update_xaxes(title_text="Fraction of bins", range=[0, 1])
+    fig.update_yaxes(title_text="Fraction of reads", range=[0, 1])
+    fig.update_layout(showlegend=False)
+    return fig
+
+
 def idr_signal_figure(idr_txt, threshold=0.05, max_points=2500, seed=0):
     r"""Draw each peak's signal in the two pseudoreplicates, split by IDR.
 

@@ -41,6 +41,9 @@ A metric with `outlier: low`, `high` or `both` flags samples whose modified z-sc
 Cohort histograms come from the metrics table. Per-sample figures come from the pipeline. The engine ships builders for common tool outputs:
 - `read_quality_figure` for fastp
 - `gc_bias_figure` for Picard GC bias metrics
+- `insert_size_figure` for Picard's insert size histogram, with shaded ranges such as the nucleosome-free one
+- `tss_profile_figure` for a TSS enrichment profile: `distance` and `enrichment` columns
+- `fingerprint_figure` for a deepTools fingerprint: `fraction_of_bins` and `fraction_of_reads` columns
 - `idr_signal_figure` for IDR 2.x output: each pseudoreplicate's signal per peak, split by IDR
 
 `write_sample_panels(path, sample, panels)` writes `samples/<sample>.js` beside the report. A panel is a plotly figure, or the path to a PNG relative to the report. The page loads a sample's file when its detail opens, so a 767-sample run stays light. This works from `file://`.
