@@ -1,0 +1,56 @@
+# A two-group spec. Copy it to start a pipeline's report.
+title: Example QC
+theme: zed
+standards:
+  name: Example cutoffs
+groups:
+  - name: Depth
+    metrics:
+      - id: fragments
+        label: Fragments
+        format: count
+        outlier: low
+        scale: log
+        table: true
+        headline: true
+        description: Usable fragments after filtering.
+      - id: aligned_pct
+        label: Aligned
+        format: percent
+        digits: 1
+        outlier: low
+        table: true
+        description: Reads that align.
+  - name: Signal
+    metrics:
+      - id: frip
+        label: FRiP
+        digits: 3
+        outlier: low
+        table: true
+        headline: true
+        description: Fraction of reads in peaks.
+      - id: nfr_peak
+        label: NFR peak
+        format: flag
+        table: true
+        description: A nucleosome-free peak in the fragment lengths.
+audits:
+  - flag: low read depth
+    level: WARNING
+    when: fragments >= 20000000 AND fragments < 25000000
+  - flag: extremely low read depth
+    level: ERROR
+    when: fragments < 15000000
+  - flag: low alignment rate
+    level: NOT_COMPLIANT
+    when: aligned_pct < 80
+  - flag: low FRiP score
+    level: NOT_COMPLIANT
+    when: frip < 0.2
+  - flag: no peaks in nucleosome-free regions
+    level: NOT_COMPLIANT
+    when: NOT nfr_peak
+links:
+  - label: fastp report
+    path: "{sample}/fastp/{sample}.html"

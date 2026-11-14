@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · {{ run_id }}</title>
+<style>
+:root { --font: {{ font }}; }
+{{ css|safe }}
+</style>
+</head>
+<body>
+<main>
+<header class="masthead">
+  <div>
+    <h1>{{ title }}</h1>
+    <p class="meta">
+      <span>{{ run_id }}</span>
+      <span>{{ n_samples }} samples</span>
+      {% if version %}<span>{{ version }}</span>{% endif %}
+      <span>{{ generated }}</span>
+    </p>
+  </div>
+  {% if standards %}
+  <p class="standards">Audited against
+    {% if standards.url %}<a href="{{ standards.url }}">{{ standards.name }}</a>{% else %}{{ standards.name }}{% endif %}
+    {% if standards.source %}<br><span class="source">{{ standards.source }}</span>{% endif %}
+  </p>
+  {% endif %}
+</header>
+
+<section class="summary" aria-label="Status">
+  <div class="status-bar">
+    {% for s in status.levels %}{% if s.count %}<span class="fill L{{ s.level }}" style="width: {{ s.share }}%" title="{{ s.label }}: {{ s.count }}"></span>{% endif %}{% endfor %}
+  </div>
+  <ul class="status-counts">
+    {% for s in status.levels %}<li><span class="swatch L{{ s.level }}"></span>{{ s.label }} <b>{{ s.count }}</b></li>{% endfor %}
+    <li><span class="out">▼▲</span> cohort outliers <b>{{ status.outliers }}</b></li>
+  </ul>
+</section>
+
+{% if cards %}
+<section class="cards" aria-label="Cohort">
+  {% for card in cards %}
+  <figure class="card" title="{{ card.description }}">
+    <figcaption>
+      <h3>{{ card.label }}</h3>
+      <p class="stat">{{ card.median }} <span class="iqr">IQR {{ card.q1 }} to {{ card.q3 }}</span></p>
+      <p class="levels">{% for c in card.counts %}<span title="{{ c.label }}"><span class="swatch L{{ c.level }}"></span>{{ c.count }}</span>{% endfor %}</p>
+    </figcaption>
+    <div class="plot" data-card="{{ card.id }}"></div>
+  </figure>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if flag_summary %}
+<section class="flags" aria-label="Audit flags">
+  <h2>Audit flags <span class="hint">Click a flag to list its samples.</span></h2>
+  <table class="flag-table">
+    <tbody>
+    {% for f in flag_summary %}
+      <tr data-flag="{{ f.slug }}" data-label="{{ f.flag }}" title="{{ f.conditions|join(' or ') }}">
+        <td><span class="chip L{{ f.level }}">{{ level_labels[f.level] }}</span></td>
+        <td class="text">{{ f.flag }}</td>
+        <td class="num">{{ f.samples }}</td>
+        <td class="bar"><span class="fill L{{ f.level }}" style="width: {{ f.share }}%"></span></td>
+        <td class="num share">{{ f.share|round(1) }}%</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section id="samples" class="samples" aria-label="Samples">
+  <div class="toolbar">
+    <h2>Samples</h2>
+    <input id="search" type="search" placeholder="Filter by sample" autocomplete="off">
+    <div class="filters" role="group" aria-label="Show">
+      <button data-min-level="0" class="active">All</button>
+      <button data-min-level="1">Warning and up</button>
+      <button data-min-level="2">Not compliant and up</button>
+      <button data-min-level="3">Error</button>
+      <button data-outliers>Outliers</button>
+    </div>
+    <span id="flag-filter" hidden><span class="label"></span><button aria-label="Clear the flag filter">×</button></span>
+    <span class="count"><b id="shown">{{ n_samples }}</b> of {{ n_samples }}</span>
+  </div>
+  <div class="table-wrap">
+  <table class="samples-table">
+    <thead>
+      <tr class="groups"><th colspan="3"></th>{% for g in groups %}<th colspan="{{ g.metrics|length }}">{{ g.name }}</th>{% endfor %}</tr>
+      <tr class="cols">
+        <th data-type="text" class="text">Sample</th>
+        <th>Status</th>
+        <th class="text">Flags</th>
+        {% for g in groups %}{% for m in g.metrics %}<th title="{{ m.description }}">{{ m.label }}</th>{% endfor %}{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr data-sample="{{ row.sample }}" data-level="{{ row.level }}" data-flags="{{ row.flags }}" data-outliers="{{ row.outliers }}">
+        <td class="text"><a href="#s-{{ row.sample }}">{{ row.sample }}</a></td>
+        <td data-value="{{ row.level }}"><span class="chip L{{ row.level }}">{{ level_labels[row.level] }}</span></td>
+        <td class="text dots" data-value="{{ row.flag_total }}" title="{{ row.flag_names }}">{% for c in row.flag_counts %}<span class="L{{ c.level }}">{{ c.count }}</span>{% endfor %}</td>
+        {% for cell in row.cells %}<td class="L{{ cell.level }}" data-value="{{ cell.sort }}" title="{{ cell.title }}">{{ cell.text }}{% if cell.outlier %}<span class="out">{% if cell.outlier == "low" %}▼{% else %}▲{% endif %}</span>{% endif %}</td>{% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>
+  <section>
+    <h2>Audits</h2>
+    <table class="audit-table">
+      <thead><tr><th class="text">Level</th><th class="text">Flag</th><th class="text">Fires when</th><th class="text">Source</th></tr></thead>
+      <tbody>
+      {% for a in audits %}<tr><td class="text"><span class="chip L{{ a.level }}">{{ level_labels[a.level] }}</span></td><td class="text">{{ a.flag }}</td><td class="text"><code>{{ a.when }}</code></td><td class="text source">{{ a.source }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% if metrics %}
+  <section>
+    <h2>Metrics</h2>
+    <dl class="definitions">{% for m in metrics %}<dt>{{ m.label }}</dt><dd>{{ m.description }}</dd>{% endfor %}</dl>
+  </section>
+  {% endif %}
+</footer>
+</main>
+
+{% for d in details %}
+<article class="detail" id="s-{{ d.sample }}" aria-label="{{ d.sample }}">
+  <div class="inner">
+    <header class="detail-head">
+      <a class="back" href="#samples">← All samples</a>
+      <h1>{{ d.sample }}</h1>
+      <span class="chip L{{ d.level }}">{{ level_labels[d.level] }}</span>
+      {% for link in d.links %}<a class="link" href="{{ link.href }}">{{ link.label }}</a>{% endfor %}
+    </header>
+    {% if d.flags %}
+    <ul class="fired">{% for f in d.flags %}<li><span class="chip L{{ f.level }}">{{ level_labels[f.level] }}</span>{{ f.flag }}<code>{{ f.when }}</code></li>{% endfor %}</ul>
+    {% endif %}
+    <div class="detail-grid">
+      <div class="metric-list">
+        {% for g in d.groups %}
+        <h3>{{ g.name }}</h3>
+        <dl>{% for m in g.metrics %}<dt title="{{ m.description }}">{{ m.label }}</dt><dd class="value L{{ m.level }}">{{ m.text }}{% if m.outlier %}<span class="out">{% if m.outlier == "low" %}▼{% else %}▲{% endif %}</span>{% endif %}</dd><dd class="pct">{% if m.percentile is not none %}p{{ m.percentile }}{% endif %}</dd>{% endfor %}</dl>
+        {% endfor %}
+      </div>
+      <div class="panels" data-sample="{{ d.sample }}"><p class="empty">Loading figures…</p></div>
+    </div>
+  </div>
+</article>
+{% endfor %}
+
+<script>{{ plotly_js|safe }}</script>
+<script id="qc-data" type="application/json">{{ data_json|safe }}</script>
+<script>{{ js|safe }}</script>
+</body>
+</html>

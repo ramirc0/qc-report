@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qc-report"
+version = "0.1.0"
+description = "One HTML QC report per run, graded by ENCODE's audits"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Christian Ramirez", email = "christian.ramirez1@umassmed.edu" }]
+dependencies = [
+    "minijinja>=2.0",
+    "msgspec>=0.19",
+    "numpy>=2.0",
+    "plotly>=6",
+    "poikilos[plotly]",
+    "polars>=1.30",
+    "pyyaml>=6.0",
+    "zlib-ng>=1.0",
+]
+
+[project.scripts]
+qc-report = "qc_report.cli:main"
+
+[dependency-groups]
+dev = [
+    "numpydoc>=1.8",
+    "pytest>=8.4",
+    "ruff>=0.15",
+]
+
+[tool.uv]
+exclude-newer = "7d"
+exclude-newer-package = { certifi = false }
+
+[tool.uv.sources]
+# The plotly template is on poikilos's unpushed plotly-template branch.
+poikilos = { path = "../../poikilos/plotly-template", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qc_report"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "src"]
+addopts = "--doctest-modules"
+
+[tool.ruff.lint]
+extend-select = ["D", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+# "all" minus the codes after it: extended summary, see also.
+[tool.numpydoc_validation]
+checks = ["all", "ES01", "SA01"]
+# Private helpers, and the console script, which has no API to show.
+exclude = ['\._', '(^|\.)cli\.']
