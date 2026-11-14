@@ -16,7 +16,7 @@ from plotly.offline import get_plotlyjs
 
 from .audits import audit_bounds, cell_levels, run_audits, sample_levels
 from .cohort import find_outliers, percentiles
-from .figures import level_histogram
+from .figures import format_count, level_histogram
 from .spec import Level
 
 SAMPLES_DIR = "samples"
@@ -53,10 +53,7 @@ def format_value(value, metric):
     if isinstance(value, float) and math.isinf(value):
         return "∞" if value > 0 else "-∞"
     if metric.format == "count":
-        for size, suffix in ((1e9, "B"), (1e6, "M"), (1e3, "k")):
-            if abs(value) >= size:
-                return f"{value / size:.3g}{suffix}"
-        return f"{value:.0f}"
+        return format_count(value)
     unit = "%" if metric.format == "percent" else ""
     return f"{value:.{metric.digits}f}{unit}"
 

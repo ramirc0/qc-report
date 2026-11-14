@@ -4,6 +4,7 @@ from .audits import run_audits
 from .cohort import find_outliers, percentiles
 from .figures import (
     LEVEL_COLORS,
+    format_count,
     gc_bias_figure,
     idr_rank_figure,
     level_histogram,
@@ -32,6 +33,7 @@ __all__ = [
     "Standards",
     "count_records",
     "find_outliers",
+    "format_count",
     "format_value",
     "gc_bias_figure",
     "idr_rank_figure",

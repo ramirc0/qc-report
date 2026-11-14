@@ -24,8 +24,35 @@ LEVEL_COLORS = {
 MUTED = "#a7a9ac"
 
 
+def format_count(value):
+    """Print a count with three significant digits and a k, M or B suffix.
+
+    Parameters
+    ----------
+    value : float
+        Count.
+
+    Returns
+    -------
+    str
+        The count, e.g. ``"38.3M"``.
+
+    Examples
+    --------
+    >>> [format_count(v) for v in (950, 285431, 38266372)]
+    ['950', '285k', '38.3M']
+    """
+    for size, suffix in ((1e9, "B"), (1e6, "M"), (1e3, "k")):
+        if abs(value) >= size:
+            return f"{value / size:.3g}{suffix}"
+    return f"{value:.0f}"
+
+
 def level_histogram(values, levels, bounds=(), log=False):
     """Draw a cohort histogram with each bar stacked by audit level.
+
+    Bins are counted here, so the page gets counts, not every value. A log
+    histogram bins log10 values and labels its axis in counts.
 
     Parameters
     ----------
@@ -36,19 +63,19 @@ def level_histogram(values, levels, bounds=(), log=False):
     bounds : sequence of float, optional
         Audit cutoffs, drawn as dotted lines.
     log : bool, default False
-        Bin and draw on a log10 axis. Non-positive values are dropped.
+        Bin on log10 values. Non-positive values are dropped.
 
     Returns
     -------
     plotly.graph_objects.Figure
-        Stacked histogram, one trace per level present.
+        Stacked bars, one trace per level present.
 
     Examples
     --------
     >>> levels = [Level.OK, Level.OK, Level.WARNING, Level.OK]
     >>> fig = level_histogram([9.0, 8.5, 6.0, 12.0], levels, bounds=[7.0])
-    >>> [trace.name for trace in fig.data]
-    ['OK', 'WARNING']
+    >>> [(trace.name, int(sum(trace.y))) for trace in fig.data]
+    [('OK', 3), ('WARNING', 1)]
     """
     x = np.asarray(values, dtype=float)
     level = np.asarray([int(v) for v in levels])
@@ -57,31 +84,50 @@ def level_histogram(values, levels, bounds=(), log=False):
     fig = go.Figure()
     if x.size == 0:
         return fig
-    binned = np.log10(x) if log else x
-    edges = np.histogram_bin_edges(binned, bins=min(40, max(10, x.size // 10)))
+    scaled = np.log10(x) if log else x
+    edges = np.histogram_bin_edges(scaled, bins=min(40, max(10, x.size // 10)))
+    ranges = np.column_stack([edges[:-1], edges[1:]])
     if log:
-        edges = 10**edges
+        ranges = 10**ranges
+    number = ".3s" if log else ".3g"
     for value in sorted(set(level)):
-        fig.add_histogram(
-            x=x[level == value],
-            xbins={"start": edges[0], "end": edges[-1], "size": _bin_size(edges, log)},
-            marker_color=LEVEL_COLORS[Level(value)],
+        counts, _ = np.histogram(scaled[level == value], bins=edges)
+        fig.add_bar(
+            x=(edges[:-1] + edges[1:]) / 2,
+            y=counts,
+            width=np.diff(edges),
+            customdata=ranges,
+            marker={"color": LEVEL_COLORS[Level(value)], "line": {"width": 0}},
             name=Level(value).label,
-            hovertemplate="%{x}<br>%{y} samples<extra>%{fullData.name}</extra>",
+            hovertemplate=f"%{{customdata[0]:{number}}} to %{{customdata[1]:{number}}}"
+            "<br>%{y} samples<extra>%{fullData.name}</extra>",
         )
     for bound in bounds:
-        fig.add_vline(x=bound, line={"dash": "dot", "width": 1, "color": MUTED})
-    fig.update_layout(barmode="stack", bargap=0.08, showlegend=False)
-    fig.update_xaxes(type="log" if log else "linear")
+        position = np.log10(bound) if log else bound
+        fig.add_vline(x=position, line={"dash": "dot", "width": 1, "color": MUTED})
+    fig.update_layout(barmode="stack", bargap=0, showlegend=False)
     fig.update_yaxes(title_text="Samples")
+    if log:
+        ticks = _log_ticks(edges[0], edges[-1])
+        fig.update_xaxes(
+            tickvals=np.log10(ticks), ticktext=[format_count(t) for t in ticks]
+        )
     return fig
 
 
-def _bin_size(edges, log):
-    # Plotly sizes log-axis bins in log10 units.
-    return float(
-        np.log10(edges[1]) - np.log10(edges[0]) if log else edges[1] - edges[0]
-    )
+def _log_ticks(low, high):
+    # 1-2-5 steps between two log10 values; add 3 and 7 when the range is narrow.
+    decades = range(int(np.floor(low)), int(np.ceil(high)) + 1)
+    for steps in ((1,), (1, 2, 5), (1, 2, 3, 5, 7)):
+        ticks = [
+            s * 10.0**d
+            for d in decades
+            for s in steps
+            if low <= np.log10(s * 10.0**d) <= high
+        ]
+        if len(ticks) >= 3:
+            return ticks
+    return ticks
 
 
 def read_quality_figure(fastp_json):
