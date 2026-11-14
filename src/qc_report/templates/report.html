@@ -45,7 +45,8 @@
   <figure class="card" title="{{ card.description }}">
     <figcaption>
       <h3>{{ card.label }}</h3>
-      <p class="stat">{{ card.median }} <span class="iqr">IQR {{ card.q1 }} to {{ card.q3 }}</span></p>
+      <p class="stat">{{ card.median }} <span class="unit">median</span></p>
+      <p class="iqr">IQR {{ card.q1 }} to {{ card.q3 }}</p>
       <p class="levels">{% for c in card.counts %}<span title="{{ c.label }}"><span class="swatch L{{ c.level }}"></span>{{ c.count }}</span>{% endfor %}</p>
     </figcaption>
     <div class="plot" data-card="{{ card.id }}"></div>
